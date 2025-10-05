@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agrisat — Smart Farming Dashboard</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; }
+    #map { height: 420px; min-height: 320px; border-radius: 12px; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 6px 18px rgba(17,24,39,0.06); }
+    .sidebar { min-width: 220px; }
+
+    /* --- Front page styles --- */
+    #frontPage {
+      position: relative;
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      text-align: center;
+      overflow: hidden;
+      background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                  url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80') no-repeat center center/cover;
+      color: white;
+    }
+
+    #frontPage h1 {
+      font-size: 4em;
+      font-weight: 900;
+      text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
+      animation: fadeInUp 1s ease forwards;
+      opacity: 0;
+    }
+
+    #frontPage p {
+      font-size: 1.4em;
+      margin-bottom: 25px;
+      text-shadow: 1px 1px 5px rgba(0,0,0,0.6);
+      animation: fadeInUp 1.2s ease forwards;
+      opacity: 0;
+    }
+
+    #enterBtn {
+      background: linear-gradient(90deg,#16a34a,#22c55e);
+      padding: 14px 32px;
+      font-size: 1.1em;
+      border-radius: 50px;
+      transition: all 0.3s;
+      box-shadow: 0 6px 20px rgba(22,163,74,0.5);
+    }
+
+    #enterBtn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 8px 25px rgba(22,163,74,0.7);
+    }
+
+    @keyframes fadeInUp {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Fade transition */
+    .fade-out { opacity: 0; transition: opacity 0.6s ease; }
+
+    /* Map card scroll */
+    #dashboard main { overflow-y: auto; }
+  </style>
+</head>
+
+<body class="bg-slate-50">
+
+  <!-- 🌾 FRONT PAGE -->
+  <section id="frontPage">
+    <h1>Welcome to AGRISAT</h1>
+    <p>Satellite-powered insights for smarter and greener farming.</p>
+    <button id="enterBtn">Enter Dashboard</button>
+  </section>
+
+  <!-- 🌍 DASHBOARD SECTION -->
+  <div id="dashboard" class="hidden h-screen">
+    <div class="flex h-screen">
+      <!-- Sidebar -->
+      <aside class="sidebar p-4 bg-white border-r card shadow-lg">
+        <div class="flex items-center gap-2 mb-6">
+          <img src="https://img.icons8.com/color/48/000000/tractor.png" class="w-10 h-10">
+          <h1 class="text-2xl font-bold text-green-600">AGRISAT</h1>
+        </div>
+        <nav class="space-y-3 text-slate-700">
+          <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 hover:text-green-700 transition">🏠 Overview</a>
+          <a href="#map-section" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 hover:text-green-700 transition">🛰️ Satellite</a>
+          <a href="#analytics" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 hover:text-green-700 transition">📊 Analytics</a>
+          <a href="#reports" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-50 hover:text-green-700 transition">📄 Reports</a>
+        </nav>
+
+        <div class="mt-6">
+          <h2 class="text-xs text-slate-400 uppercase tracking-wider">Select Place</h2>
+          <select id="placeSelect" class="mt-2 w-full p-2 border rounded">
+            <option value="kerala">Kerala</option>
+            <option value="tamilnadu">Tamil Nadu</option>
+            <option value="punjab">Punjab</option>
+            <option value="maharashtra">Maharashtra</option>
+          </select>
+          <button id="btnGenerateReport" class="mt-3 w-full bg-green-600 text-white py-2 rounded text-sm hover:bg-green-700 transition">Generate Report</button>
+        </div>
+
+        <div class="mt-6 text-xs text-slate-500">© Agrisat Demo</div>
+      </aside>
+
+      <!-- Main content -->
+      <main class="flex-1 p-6 overflow-auto">
+        <header class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold">Smart Farming Dashboard</h2>
+            <p class="text-sm text-slate-500">Satellite and sensor insights by region</p>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400">Location</div>
+            <div id="locationText" class="font-medium">Kerala, India</div>
+          </div>
+        </header>
+
+        <!-- Metrics -->
+        <section id="metrics" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div class="p-4 card hover:shadow-xl transition">
+            <div class="text-sm text-slate-500">NDVI (avg)</div>
+            <div id="ndviVal" class="text-2xl font-semibold text-green-700">0.62</div>
+            <div id="ndviLabel" class="text-xs text-slate-400">Healthy vegetation</div>
+          </div>
+          <div class="p-4 card hover:shadow-xl transition">
+            <div class="text-sm text-slate-500">Soil Moisture</div>
+            <div id="moistVal" class="text-2xl font-semibold">23%</div>
+            <div class="text-xs text-slate-400">Moderate</div>
+          </div>
+          <div class="p-4 card hover:shadow-xl transition">
+            <div class="text-sm text-slate-500">Temperature</div>
+            <div id="tempVal" class="text-2xl font-semibold">29°C</div>
+            <div class="text-xs text-slate-400">Daytime</div>
+          </div>
+          <div class="p-4 card hover:shadow-xl transition">
+            <div class="text-sm text-slate-500">Rain (7d)</div>
+            <div id="rainVal" class="text-2xl font-semibold">12 mm</div>
+            <div class="text-xs text-slate-400">Light showers</div>
+          </div>
+        </section>
+
+        <!-- Map + Chart -->
+        <section id="map-section" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 card p-4">
+            <h3 class="font-semibold mb-2">Satellite Map</h3>
+            <div id="map"></div>
+          </div>
+          <div class="card p-4">
+            <h3 class="font-semibold mb-3">NDVI Trends</h3>
+            <canvas id="ndviChart" height="160"></canvas>
+          </div>
+        </section>
+
+        <footer class="mt-6 text-xs text-slate-400">Demo | Data simulated for learning use</footer>
+      </main>
+    </div>
+  </div>
+
+  <!-- Report Modal -->
+  <div id="reportBox" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center">
+    <div class="bg-white p-6 rounded-xl w-80 text-sm">
+      <h3 class="font-semibold mb-2">📄 Regional Report</h3>
+      <div id="reportContent" class="text-slate-600 mb-3"></div>
+      <button id="closeReport" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // Transition from front page to dashboard
+    const enterBtn = document.getElementById('enterBtn');
+    enterBtn.addEventListener('click', () => {
+      document.getElementById('frontPage').classList.add('fade-out');
+      setTimeout(() => {
+        document.getElementById('frontPage').style.display = 'none';
+        document.getElementById('dashboard').classList.remove('hidden');
+        setTimeout(() => map.invalidateSize(), 400);
+      }, 600);
+    });
+
+    // Initialize map
+    const map = L.map('map').setView([10, 76], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Region data
+    const regionData = {
+      kerala:    { lat: 9.6, lng: 76.9, ndvi: 0.62, moist: 23, temp: 29, rain: 12, summary: 'Healthy crop growth with mild rain and good NDVI.' },
+      tamilnadu: { lat: 11.0, lng: 78.0, ndvi: 0.48, moist: 18, temp: 33, rain: 5,  summary: 'Moderate vegetation; low moisture, recommend irrigation.' },
+      punjab:    { lat: 30.9, lng: 75.8, ndvi: 0.71, moist: 28, temp: 26, rain: 22, summary: 'Excellent NDVI and good rainfall for paddy season.' },
+      maharashtra:{lat:19.7, lng:75.3, ndvi:0.53, moist:20, temp:31, rain:10, summary:'Dry soil detected, low rainfall. Consider mulching or drip irrigation.' }
+    };
+
+    // Chart.js NDVI trend
+    const ndviCtx = document.getElementById('ndviChart').getContext('2d');
+    const ndviChart = new Chart(ndviCtx, {
+      type: 'line',
+      data: {
+        labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+        datasets: [{
+          label: 'NDVI',
+          data: [0.5,0.55,0.58,0.6,0.62,0.63,0.62],
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.2)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { suggestedMin: 0, suggestedMax: 1 } } }
+    });
+
+    // Update dashboard when place selected
+    document.getElementById('placeSelect').addEventListener('change', e => {
+      const val = e.target.value;
+      const data = regionData[val];
+      if (!data) return;
+
+      document.getElementById('locationText').textContent = val.charAt(0).toUpperCase()+val.slice(1)+', India';
+      document.getElementById('ndviVal').textContent = data.ndvi;
+      document.getElementById('moistVal').textContent = data.moist + '%';
+      document.getElementById('tempVal').textContent = data.temp + '°C';
+      document.getElementById('rainVal').textContent = data.rain + ' mm';
+      document.getElementById('ndviLabel').textContent = data.ndvi > 0.6 ? 'Healthy' : (data.ndvi > 0.45 ? 'Moderate' : 'Low');
+
+      map.setView([data.lat, data.lng], 8);
+
+      const randomTrend = Array.from({length:7},()=>Math.max(0,Math.min(1,data.ndvi+(Math.random()*0.1-0.05))));
+      ndviChart.data.datasets[0].data = randomTrend;
+      ndviChart.update();
+    });
+
+    // Report modal
+    document.getElementById('btnGenerateReport').addEventListener('click', ()=>{
+      const val = document.getElementById('placeSelect').value;
+      const data = regionData[val];
+      document.getElementById('reportContent').innerHTML = `
+        <p><b>Region:</b> ${val.charAt(0).toUpperCase()+val.slice(1)}</p>
+        <p><b>NDVI:</b> ${data.ndvi}</p>
+        <p><b>Soil Moisture:</b> ${data.moist}%</p>
+        <p><b>Temperature:</b> ${data.temp}°C</p>
+        <p><b>Rainfall (7d):</b> ${data.rain} mm</p>
+        <hr class="my-2">
+        <p>${data.summary}</p>`;
+      document.getElementById('reportBox').classList.remove('hidden');
+    });
+    document.getElementById('closeReport').addEventListener('click',()=>{
+      document.getElementById('reportBox').classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
